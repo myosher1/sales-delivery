@@ -1,0 +1,40 @@
+Product Requirements Document: Order Processing Integration Prepared For: E-Commerce Platform – Engineering Team
+Version: 1.1
+1. Overview
+This document outlines the requirements for integrating the Sales and Delivery systems to support a full order  lifecycle within a large-scale e-commerce platform. Each department operates its own application, and this  initiative aims to implement a reliable and robust communication flow between them.
+2. Objectives
+• Allow the Sales department to receive and process customer orders.
+• Ensure product availability before confirming orders.
+• Store and track order information across its lifecycle.
+• Initiate delivery workflows upon order creation.
+• Receive delivery status updates to keep order states synchronized.
+3. Functional Requirements
+3.1 Order Creation (Sales Application)
+• Sales exposes a secure API endpoint to receive incoming customer orders.
+• When an order is received:
+o Validate input data.
+o Check product availability.
+o If available:
+▪ Create the order in the Sales database.
+▪ Assign a unique order ID.
+▪ Set the order status to "Pending Shipment".
+▪ Initiate the delivery process.
+▪ Return the order ID to the customer.
+[Confidential]
+3.2 Communication Between Systems
+• Upon order creation, the Sales application must communicate with other systems regarding new order details.
+• The Delivery application begins the shipment processing once getting order details. 3.3 Delivery Notifications (Delivery → Sales)
+• The Delivery application sends updates to the Sales system:
+o When the order is shipped.
+o When the order is delivered.
+• These updates should update the order status in the Sales system accordingly ("Shipped" and  "Delivered").
+4. Non-Functional Requirements
+• Reliability: Communication between services must tolerate transient failures and ensure eventual  consistency.
+• Scalability: The system must support high throughput during peak ordering hours. • Idempotency: Status updates and event handling must be designed to handle duplicate messages safely. • Security: All APIs and messages must be securely authenticated and authorized (Nice to have) • Observability: Systems should log key events and expose metrics for monitoring flow health. (Nice to  have)
+5. Out of Scope
+• Payment handling and validation.
+• Inventory reservation or warehouse logistics.
+6. Success Criteria
+• All valid orders receive a confirmed order ID.
+• Order delivery status changes are reflected in the Sales system reliably and promptly. • Delivery status changes are reflected in the Delivery system reliably and promptly.
+[Confidential]
