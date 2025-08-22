@@ -1,23 +1,24 @@
-# Use Node.js 20 Alpine for smaller image size
-FROM node:20-alpine
+# Use Node.js LTS
+FROM node:18-alpine
 
-# Set working directory
+# Create app directory
 WORKDIR /app
 
-# Copy package files
+# Install dependencies
 COPY package*.json ./
-
-# Install all dependencies (including dev dependencies for tsx)
-RUN npm install
+RUN npm ci
 
 # Copy source code
 COPY . .
 
-# Build TypeScript
+# Build the TypeScript code
 RUN npm run build
 
-# Expose port
+# Install production dependencies only
+RUN npm ci --only=production
+
+# Expose the port the app runs on
 EXPOSE 3000
 
-# Start the application
-CMD ["npm", "start"]
+# Command to run the application
+CMD ["sh", "-c", "npm run db:migrate && node dist/app.js"]

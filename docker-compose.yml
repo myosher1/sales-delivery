@@ -1,125 +1,134 @@
 version: '3.8'
 
 services:
+
   # API Gateway
   api-gateway:
-    build: ./api-gateway
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=development
+      - PORT=3000
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - SALES_SERVICE_URL=http://sales-service:3000
+      - DELIVERY_SERVICE_URL=http://delivery-service:3002
     depends_on:
+      - redis
       - sales-service
       - delivery-service
     networks:
-      - app-network
-
-  # Sales Service
-  sales-service:
-    build: ./sales-service
-    ports:
-      - "3001:3001"
-    environment:
-      - NODE_ENV=development
-      - DB_HOST=sales-db
-      - DB_PORT=5432
-      - DB_USERNAME=postgres
-      - DB_PASSWORD=postgres
-      - DB_NAME=sales_db
-      - RABBITMQ_URL=amqp://rabbitmq:5672
-      - REDIS_URL=redis://redis:6379
-    depends_on:
-      - sales-db
-      - rabbitmq
-      - redis
-    networks:
-      - app-network
-
-  # Delivery Service
-  delivery-service:
-    build: ./delivery-service
-    ports:
-      - "3002:3002"
-    environment:
-      - NODE_ENV=development
-      - DB_HOST=delivery-db
-      - DB_PORT=5432
-      - DB_USERNAME=postgres
-      - DB_PASSWORD=postgres
-      - DB_NAME=delivery_db
-      - RABBITMQ_URL=amqp://rabbitmq:5672
-      - REDIS_URL=redis://redis:6379
-    depends_on:
-      - delivery-db
-      - rabbitmq
-      - redis
-    networks:
-      - app-network
-
-  # Sales Database
-  sales-db:
-    image: postgres:13-alpine
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=sales_db
-    volumes:
-      - sales-db-data:/var/lib/postgresql/data
-    networks:
-      - app-network
-
-  # Delivery Database
-  delivery-db:
-    image: postgres:13-alpine
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=delivery_db
-    volumes:
-      - delivery-db-data:/var/lib/postgresql/data
-    networks:
-      - app-network
-
-  # PGAdmin (Database Management)
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@admin.com
-      PGADMIN_DEFAULT_PASSWORD: admin
-    ports:
-      - "5050:80"
-    depends_on:
-      - sales-db
-      - delivery-db
-    networks:
-      - app-network
-
-  # RabbitMQ
-  rabbitmq:
-    image: rabbitmq:3-management
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    environment:
-      - RABBITMQ_DEFAULT_USER=guest
-      - RABBITMQ_DEFAULT_PASS=guest
-    networks:
-      - app-network
+      - my-shop-network
+    restart: unless-stopped
 
   # Redis
   redis:
-    image: redis:alpine
+    image: redis:7-alpine
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data
     networks:
-      - app-network
+      - my-shop-network
+    restart: unless-stopped
 
-# Networks
+  # Sales Service
+  sales-service:
+    build:
+      context: ./sales-service
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=password
+      - DB_NAME=ecommerce_db
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/ecommerce_db
+    depends_on:
+      - postgres
+    networks:
+      - my-shop-network
+    restart: unless-stopped
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+    networks:
+      - my-shop-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # RabbitMQ
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    hostname: rabbitmq
+    container_name: rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    ports:
+      - "5672:5672"  # AMQP protocol
+      - "15672:15672"  # Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - my-shop-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+#  # Delivery Service
+  delivery-service:
+    build:
+      context: ./delivery-service
+      dockerfile: Dockerfile
+    container_name: delivery-service
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgres://postgres:password@postgres:5432/delivery_db
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+      - RABBITMQ_QUEUE=delivery_queue
+    ports:
+      - "3002:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - my-shop-network
+    restart: unless-stopped
+
 networks:
-  app-network:
+  my-shop-network:
     driver: bridge
 
-# Volumes
 volumes:
-  sales-db-data:
-  delivery-db-data:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
