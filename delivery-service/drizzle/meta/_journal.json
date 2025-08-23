@@ -8,6 +8,13 @@
       "when": 1755848431378,
       "tag": "0000_yellow_inertia",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1755942000000,
+      "tag": "0001_fix_string_ids",
+      "breakpoints": true
     }
   ]
 }

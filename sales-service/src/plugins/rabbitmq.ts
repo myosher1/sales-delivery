@@ -128,12 +128,22 @@ const rabbitmqPlugin = async (fastify: FastifyInstance) => {
     // Publish order created event function
     const publishOrderEvent = async (orderData: any) => {
       try {
+        const message = {
+          type: 'ORDER_CREATED',
+          orderId: orderData.id,
+          customerId: orderData.customerId,
+          shippingAddress: orderData.shippingAddress,
+          items: orderData.items,
+          totalAmount: orderData.totalAmount,
+          createdAt: orderData.createdAt
+        };
+        
         await channel.sendToQueue(
           'delivery_queue',
-          Buffer.from(JSON.stringify(orderData)),
+          Buffer.from(JSON.stringify(message)),
           { persistent: true }
         );
-        fastify.log.info(`Order event published for order: ${orderData.orderId}`);
+        fastify.log.info(`Order event published for order: ${orderData.id}`);
       } catch (error: any) {
         fastify.log.error('Error publishing order event:', error);
         throw error;

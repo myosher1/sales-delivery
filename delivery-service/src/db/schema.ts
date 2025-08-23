@@ -1,5 +1,5 @@
 // src/db/schema.ts
-import { pgTable, serial, varchar, timestamp, integer, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, serial, varchar, timestamp, jsonb } from 'drizzle-orm/pg-core';
 
 // Delivery status enum
 export const deliveryStatusEnum = {
@@ -11,8 +11,8 @@ export const deliveryStatusEnum = {
 
 export const deliveries = pgTable('deliveries', {
   id: serial('id').primaryKey(),
-  orderId: integer('order_id').notNull(),
-  customerId: integer('customer_id').notNull(),
+  orderId: varchar('order_id', { length: 255 }).notNull(),
+  customerId: varchar('customer_id', { length: 255 }).notNull(),
   address: jsonb('address').notNull(),
   status: varchar('status', { length: 20 })
     .notNull()

@@ -15,14 +15,16 @@ server.register(rabbitmqPlugin);
 server.get('/health', async (request, reply) => {
   try {
     // Check database connection
-      await db.execute(sql`SELECT 1`);
-    
-    // Check RabbitMQ connection
-    if (!server.rabbitmq?.channel) {
-      throw new Error('RabbitMQ not connected');
-    }
-    
-    return { status: 'ok' };
+    await db.execute(sql`SELECT 1`);
+
+    // Check RabbitMQ connection status (don't fail if disconnected)
+    const rabbitmqStatus = server.rabbitmq?.channel ? 'connected' : 'disconnected';
+
+    return {
+      status: 'ok',
+      service: 'delivery-service',
+      rabbitmq: rabbitmqStatus
+    };
   } catch (error) {
     server.log.error(error);
     reply.status(500).send({ status: 'error', message: 'Service unavailable' });
