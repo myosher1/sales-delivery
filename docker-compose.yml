@@ -51,8 +51,8 @@ services:
       - DB_PORT=5432
       - DB_USERNAME=postgres
       - DB_PASSWORD=password
-      - DB_NAME=ecommerce_db
-      - DATABASE_URL=postgresql://postgres:password@postgres:5432/ecommerce_db
+      - DB_NAME=sales_db
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/sales_db
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
     depends_on:
       postgres:
@@ -128,7 +128,7 @@ services:
       retries: 10
     restart: unless-stopped
 
-#  # Delivery Service
+  # Delivery Service
   delivery-service:
     build:
       context: delivery-service

@@ -85,7 +85,7 @@ ARCHITECTURE PATTERNS:
 │                               (Port 5432)                                             │
 │                                                                                       │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐                        │
-│  │  ecommerce_db   │  │  delivery_db    │  │  inventory_db   │                        │
+│  │    sales_db     │  │  delivery_db    │  │  inventory_db   │                        │
 │  │                 │  │                 │  │                 │                        │
 │  │ • orders        │  │ • deliveries    │  │ • products      │                        │
 │  │ • customers     │  │ • delivery_logs │  │ • stock_moves   │                        │
@@ -129,7 +129,7 @@ ENDPOINTS:
 - GET /orders/:id - Retrieve order details
 - PUT /orders/:id/status - Update order status
 
-DATABASE: ecommerce_db
+DATABASE: SALES_DB
 TABLES:
 - orders (id, customer_id, status, total_amount, created_at, updated_at)
 - customers (id, name, email, phone, address, created_at)
@@ -255,7 +255,7 @@ Order Status ← ─ ─ ─ ┘         Update Stock   Movement Log
 5.2 DATABASE SCHEMAS
 --------------------
 
-ECOMMERCE_DB (Sales Service):
+SALES_DB (Sales Service):
 ┌─────────────────────────────────────────────────────────────┐
 │ orders                                                      │
 ├─────────────────────────────────────────────────────────────┤
