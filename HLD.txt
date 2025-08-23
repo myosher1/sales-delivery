@@ -137,26 +137,39 @@ TABLES:
 
 3.3 INVENTORY SERVICE (Port 3003)
 ----------------------------------
-PURPOSE: Product catalog and stock management
+PURPOSE: Event-driven stock management and product catalog
 RESPONSIBILITIES:
-- Product inventory management
-- Stock availability validation
-- Stock reservation and release
-- Inventory audit trail
-- Product catalog maintenance
+- Product inventory validation via RabbitMQ messaging
+- Stock reservation and release operations
+- Inventory audit trail and movement tracking
+- Asynchronous inventory checks for order processing
+
+ARCHITECTURE:
+- Event-driven communication via RabbitMQ queues
+- Internal service methods called by message consumers
+- Single HTTP endpoint for direct availability checks
+- Automatic stock movement logging with audit trail
 
 ENDPOINTS:
-- GET /products - List all products
-- GET /products/:id - Get product details
-- POST /products - Create new product
-- PUT /products/:id - Update product
-- POST /stock/reserve - Reserve stock
-- POST /stock/release - Release reserved stock
+- POST /check-availability - Direct HTTP endpoint for inventory availability checks
 
-DATABASE: inventory_db
-TABLES:
-- products (id, name, description, price, stock_quantity, status, created_at)
-- stock_movements (id, product_id, order_id, movement_type, quantity, reason, created_at)
+RABBITMQ INTEGRATION:
+- Consumes from: inventory_check_queue (stock validation requests)
+- Publishes to: inventory_response_queue (validation responses)
+- Consumes from: stock_reservation_queue (stock reservation requests)
+- Consumes from: stock_release_queue (stock release requests)
+
+INTERNAL SERVICE METHODS:
+- checkAvailability() - Validates product existence, status, and stock levels
+- reserveStock() - Decreases stock quantities for confirmed orders
+- releaseStock() - Increases stock quantities for cancelled orders
+- Automatic stock movement audit trail with reasons and order references
+
+COMMUNICATION FLOW:
+1. Sales Service → inventory_check_queue → Inventory Service validates stock
+2. Inventory Service → inventory_response_queue → Sales Service receives validation
+3. Sales Service → stock_reservation_queue → Inventory Service reserves stock
+4. Sales Service → stock_release_queue → Inventory Service releases stock
 
 3.4 DELIVERY SERVICE (Port 3002)
 ---------------------------------
@@ -252,17 +265,6 @@ ECOMMERCE_DB (Sales Service):
 │ total_amount (DECIMAL)                                      │
 │ created_at (TIMESTAMP)                                      │
 │ updated_at (TIMESTAMP)                                      │
-└─────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────┐
-│ customers                                                   │
-├─────────────────────────────────────────────────────────────┤
-│ id (UUID, PK)                                               │
-│ name (VARCHAR)                                              │
-│ email (VARCHAR, UNIQUE)                                     │
-│ phone (VARCHAR)                                             │
-│ address (TEXT)                                              │
-│ created_at (TIMESTAMP)                                      │
 └─────────────────────────────────────────────────────────────┘
 
 INVENTORY_DB (Inventory Service):
