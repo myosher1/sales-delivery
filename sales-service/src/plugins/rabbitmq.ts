@@ -85,6 +85,7 @@ const rabbitmqPlugin = async (fastify: FastifyInstance) => {
     });
     
     // Consume delivery status updates (existing functionality)
+    fastify.log.info('Setting up order_status_queue consumer...');
     await channel.consume('order_status_queue', async (msg) => {
       if (msg) {
         try {

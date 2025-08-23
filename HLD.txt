@@ -1,0 +1,471 @@
+================================================================================
+                    MICROSERVICES E-COMMERCE SYSTEM
+                         HIGH-LEVEL DESIGN (HLD)
+================================================================================
+
+VERSION: 1.0
+DATE: 2025-08-23
+AUTHOR: System Architecture Team
+
+================================================================================
+                              TABLE OF CONTENTS
+================================================================================
+
+1. SYSTEM OVERVIEW
+2. ARCHITECTURE DIAGRAM
+3. SERVICE SPECIFICATIONS
+4. MESSAGE FLOW DIAGRAMS
+5. DATABASE DESIGN
+6. TECHNOLOGY STACK
+7. DEPLOYMENT ARCHITECTURE
+8. SECURITY CONSIDERATIONS
+9. SCALABILITY & PERFORMANCE
+10. FUTURE ROADMAP
+
+================================================================================
+                              1. SYSTEM OVERVIEW
+================================================================================
+
+The Microservices E-commerce System is a distributed, event-driven architecture
+designed for scalable online retail operations. The system implements modern
+microservices patterns with asynchronous communication via message queues.
+
+KEY FEATURES:
+- Order Management & Processing
+- Real-time Inventory Management
+- Delivery Tracking & Status Updates
+- Event-driven Communication
+- Automated Database Management
+- API Gateway with Cross-cutting Concerns
+
+ARCHITECTURE PATTERNS:
+- Microservices Architecture
+- Event-Driven Architecture (EDA)
+- Command Query Responsibility Segregation (CQRS)
+- Saga Pattern for Distributed Transactions
+- Database Per Service Pattern
+
+================================================================================
+                            2. ARCHITECTURE DIAGRAM
+================================================================================
+
+┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐
+│   API GATEWAY    │    │  SALES SERVICE   │    │INVENTORY SERVICE │    │ DELIVERY SERVICE │
+│   (Port 3001)    │    │   (Port 3000)    │    │   (Port 3003)    │    │   (Port 3002)    │
+│                  │    │                  │    │                  │    │                  │
+│ • Idempotency    │    │ • Order Creation │    │ • Stock Mgmt     │    │ • Delivery Mgmt  │
+│                  │    │ • Order Status   │    │ • Product Catalog│    │ • Status Updates │
+│                  │    │ • Customer Mgmt  │    │ • Stock Audit    │    │ • Route Tracking │
+└──────┬───────────┘    └─────────┬────────┘    └─────────┬────────┘    └─────────┬────────┘
+       │                          │                       │                       │
+       │                          │                       │                       │
+       └──────────────────────────┼───────────────────────┼───────────────────────┘
+                                  │                       │
+                                  │                       │
+┌─────────────────────────────────┼───────────────────────┼─────────────────────────────────┐
+│                            RABBITMQ MESSAGE BROKER                                        │
+│                               (Port 5672)                                                 │
+│                                                                                           │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐       │
+│  │ delivery_queue  │  │order_status     │  │inventory_check_ │  │stock_reservation│       │
+│  │                 │  │    _queue       │  │     queue       │  │     _queue      │       │
+│  │ Sales→Delivery  │  │ Delivery→Sales  │  │ Sales→Inventory │  │ Sales→Inventory │       │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘  └─────────────────┘       │
+│                                                                                           │
+│  ┌─────────────────┐  ┌─────────────────┐                                                 │
+│  │inventory_response│  │stock_release_   │                                                │
+│  │     _queue      │  │     queue       │                                                 │
+│  │ Inventory→Sales │  │ Sales→Inventory │                                                 │
+│  └─────────────────┘  └─────────────────┘                                                 │
+└────────────────────────────────────────────────────────────────────────────────────────────
+                                  │
+                                  │
+┌─────────────────────────────────┼─────────────────────────────────────────────────────┐
+│                          POSTGRESQL DATABASE                                          │
+│                               (Port 5432)                                             │
+│                                                                                       │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐                        │
+│  │  ecommerce_db   │  │  delivery_db    │  │  inventory_db   │                        │
+│  │                 │  │                 │  │                 │                        │
+│  │ • orders        │  │ • deliveries    │  │ • products      │                        │
+│  │ • customers     │  │ • delivery_logs │  │ • stock_moves   │                        │
+│  │ • order_items   │  │                 │  │                 │                        │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘                        │
+└───────────────────────────────────────────────────────────────────────────────────────┘
+
+================================================================================
+                           3. SERVICE SPECIFICATIONS
+================================================================================
+
+3.1 API GATEWAY (Port 3001)
+----------------------------
+PURPOSE: Single entry point for all client requests
+RESPONSIBILITIES:
+- Request routing to appropriate services
+- Idempotency key validation
+- Rate limiting and throttling (future)
+- Load balancing (future)
+- Authentication & authorization (future)
+- Request/response transformation (future)
+
+ENDPOINTS:
+- GET /health - Health check
+- POST /orders - Create order (proxy to sales-service)
+- GET /orders/:id - Get order details
+- PATCH /orders/:id/status - Update order status
+
+3.2 SALES SERVICE (Port 3000)
+------------------------------
+PURPOSE: Core business logic for order management
+RESPONSIBILITIES:
+- Order creation and management
+- Customer data management
+- Order status tracking
+- Integration with inventory and delivery services
+- Business rule enforcement
+
+ENDPOINTS:
+- POST /orders - Create new order
+- GET /orders/:id - Retrieve order details
+- PUT /orders/:id/status - Update order status
+- GET /customers/:id - Customer information
+
+DATABASE: ecommerce_db
+TABLES:
+- orders (id, customer_id, status, total_amount, created_at, updated_at)
+- customers (id, name, email, phone, address, created_at)
+- order_items (id, order_id, product_id, quantity, price)
+
+3.3 INVENTORY SERVICE (Port 3003)
+----------------------------------
+PURPOSE: Product catalog and stock management
+RESPONSIBILITIES:
+- Product inventory management
+- Stock availability validation
+- Stock reservation and release
+- Inventory audit trail
+- Product catalog maintenance
+
+ENDPOINTS:
+- GET /products - List all products
+- GET /products/:id - Get product details
+- POST /products - Create new product
+- PUT /products/:id - Update product
+- POST /stock/reserve - Reserve stock
+- POST /stock/release - Release reserved stock
+
+DATABASE: inventory_db
+TABLES:
+- products (id, name, description, price, stock_quantity, status, created_at)
+- stock_movements (id, product_id, order_id, movement_type, quantity, reason, created_at)
+
+3.4 DELIVERY SERVICE (Port 3002)
+---------------------------------
+PURPOSE: Delivery management and tracking
+RESPONSIBILITIES:
+- Delivery record creation
+- Delivery status management
+- Route optimization (future)
+- Delivery notifications
+- Performance analytics (future)
+
+ENDPOINTS:
+- POST /deliveries - Create delivery record
+- GET /deliveries/:id - Get delivery details
+- PATCH /deliveries/:id/status - Update delivery status
+- GET /deliveries/order/:orderId - Get delivery by order
+
+DATABASE: delivery_db
+TABLES:
+- deliveries (id, order_id, status, address, created_at, updated_at)
+- delivery_logs (id, delivery_id, status, timestamp, notes)
+
+================================================================================
+                           4. MESSAGE FLOW DIAGRAMS
+================================================================================
+
+4.1 ORDER CREATION FLOW
+------------------------
+Customer → API Gateway → Sales Service → RabbitMQ → Inventory Service
+                            ↓                           ↓
+                       Order Created              Stock Validated
+                            ↓                           ↓
+                       RabbitMQ ← ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘
+                            ↓
+                    Delivery Service
+                            ↓
+                   Delivery Record Created
+
+SEQUENCE:
+1. Customer submits order via API Gateway
+2. Sales Service validates order and creates record
+3. Sales Service publishes inventory check request
+4. Inventory Service validates stock availability
+5. Inventory Service responds with validation result
+6. If valid, Sales Service publishes order to delivery queue
+7. Delivery Service creates delivery record
+8. Delivery Service publishes status update back to Sales
+
+4.2 STATUS UPDATE FLOW
+-----------------------
+Delivery Service → RabbitMQ → Sales Service → Database
+       ↓              ↓            ↓             ↓
+Status Change    order_status_  Order Status  Customer
+(PENDING,        queue          Updated       Notification
+ IN_TRANSIT,                   (Pending      (Future)
+ DELIVERED,                    Shipment,
+ FAILED)                       In Transit,
+                               Delivered)
+
+4.3 INVENTORY MANAGEMENT FLOW
+-----------------------------
+Sales Service → RabbitMQ → Inventory Service → Database
+     ↓              ↓              ↓               ↓
+Order Request  inventory_check_  Stock Check    products
+     ↓         queue             ↓               stock_moves
+     ↓              ↓         Stock Reserve      ↓
+     ↓         inventory_response_ ↓             ↓
+     ↓         queue          Stock Release     Audit Trail
+     ↓              ↓              ↓               ↓
+Order Status ← ─ ─ ─ ┘         Update Stock   Movement Log
+
+================================================================================
+                              5. DATABASE DESIGN
+================================================================================
+
+5.1 DATABASE STRATEGY
+----------------------
+- Database Per Service Pattern
+- Independent schema evolution
+- Service-specific optimization
+- Data isolation and security
+
+5.2 DATABASE SCHEMAS
+--------------------
+
+ECOMMERCE_DB (Sales Service):
+┌─────────────────────────────────────────────────────────────┐
+│ orders                                                      │
+├─────────────────────────────────────────────────────────────┤
+│ id (UUID, PK)                                               │
+│ customer_id (UUID, FK)                                      │
+│ status (VARCHAR) - 'Pending Shipment', 'In Transit', etc.  │
+│ total_amount (DECIMAL)                                      │
+│ created_at (TIMESTAMP)                                      │
+│ updated_at (TIMESTAMP)                                      │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ customers                                                   │
+├─────────────────────────────────────────────────────────────┤
+│ id (UUID, PK)                                               │
+│ name (VARCHAR)                                              │
+│ email (VARCHAR, UNIQUE)                                     │
+│ phone (VARCHAR)                                             │
+│ address (TEXT)                                              │
+│ created_at (TIMESTAMP)                                      │
+└─────────────────────────────────────────────────────────────┘
+
+INVENTORY_DB (Inventory Service):
+┌─────────────────────────────────────────────────────────────┐
+│ products                                                    │
+├─────────────────────────────────────────────────────────────┤
+│ id (UUID, PK)                                               │
+│ name (VARCHAR)                                              │
+│ description (TEXT)                                          │
+│ price (DECIMAL)                                             │
+│ stock_quantity (INTEGER)                                    │
+│ status (VARCHAR) - 'active', 'inactive', 'discontinued'    │
+│ created_at (TIMESTAMP)                                      │
+│ updated_at (TIMESTAMP)                                      │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ stock_movements                                             │
+├─────────────────────────────────────────────────────────────┤
+│ id (UUID, PK)                                               │
+│ product_id (UUID, FK)                                       │
+│ order_id (UUID, NULLABLE)                                   │
+│ movement_type (VARCHAR) - 'reserve', 'release', 'adjust'    │
+│ quantity (INTEGER)                                          │
+│ reason (VARCHAR)                                            │
+│ created_at (TIMESTAMP)                                      │
+└─────────────────────────────────────────────────────────────┘
+
+DELIVERY_DB (Delivery Service):
+┌─────────────────────────────────────────────────────────────┐
+│ deliveries                                                  │
+├─────────────────────────────────────────────────────────────┤
+│ id (SERIAL, PK)                                             │
+│ order_id (UUID, UNIQUE)                                     │
+│ status (VARCHAR) - 'PENDING', 'IN_TRANSIT', 'DELIVERED'    │
+│ address (TEXT)                                              │
+│ created_at (TIMESTAMP)                                      │
+│ updated_at (TIMESTAMP)                                      │
+└─────────────────────────────────────────────────────────────┘
+
+================================================================================
+                             6. TECHNOLOGY STACK
+================================================================================
+
+6.1 BACKEND SERVICES
+---------------------
+- Runtime: Node.js 18+
+- Framework: Fastify 4.x
+- Language: TypeScript 5.x
+- HTTP Client: Native fetch / axios
+
+6.2 DATABASE LAYER
+-------------------
+- Database: PostgreSQL 15+
+- ORM: Drizzle ORM
+- Migration: Drizzle-kit
+- Connection Pooling: Built-in PostgreSQL pooling
+
+6.3 MESSAGE BROKER
+-------------------
+- Message Broker: RabbitMQ 3.12+
+- Protocol: AMQP 0.9.1
+- Client Library: amqplib
+- Queue Durability: Persistent queues
+
+6.4 CONTAINERIZATION
+---------------------
+- Container Runtime: Docker 24+
+- Orchestration: Docker Compose
+- Base Images: Node.js Alpine
+- Multi-stage builds for optimization
+
+6.5 DEVELOPMENT TOOLS
+---------------------
+- Package Manager: npm
+- Build Tool: TypeScript Compiler
+- Code Quality: ESLint, Prettier
+- Testing: Jest (future implementation)
+
+================================================================================
+                          7. DEPLOYMENT ARCHITECTURE
+================================================================================
+
+7.1 CONTAINER ORCHESTRATION
+----------------------------
+Services are containerized using Docker with the following structure:
+
+my_shop/
+├── api-gateway/          (Port 3001)
+├── sales-service/        (Port 3000)
+├── inventory-service/    (Port 3003)
+├── delivery-service/     (Port 3002)
+├── docker-compose.yml    (Orchestration)
+└── init-db.sh           (Database initialization)
+
+7.2 NETWORKING
+--------------
+- Internal Docker Network: my_shop_default
+- External Access: Host port mapping
+- Service Discovery: Docker DNS resolution
+- Load Balancing: API Gateway handles distribution
+
+7.3 DATA PERSISTENCE
+---------------------
+- Database Volumes: Persistent Docker volumes
+- Automated Initialization: init-db.sh script
+- Backup Strategy: Volume snapshots (future)
+
+7.4 ENVIRONMENT CONFIGURATION
+------------------------------
+- Environment Variables: .env files per service
+- Configuration Management: Centralized config (future)
+- Secrets Management: Docker secrets (future)
+
+================================================================================
+                          8. SECURITY CONSIDERATIONS
+================================================================================
+
+8.1 CURRENT SECURITY MEASURES
+------------------------------
+- Network Isolation: Docker internal networks
+- Database Access Control: Service-specific credentials
+- Input Validation: Schema validation at API level
+
+8.2 PLANNED SECURITY ENHANCEMENTS
+----------------------------------
+- Authentication: JWT-based authentication
+- Authorization: Role-based access control (RBAC)
+- API Security: Rate limiting, CORS, HTTPS
+- Data Encryption: TLS in transit, encryption at rest
+- Secret Management: HashiCorp Vault integration
+- Audit Logging: Comprehensive audit trails
+
+================================================================================
+                        9. SCALABILITY & PERFORMANCE
+================================================================================
+
+9.1 HORIZONTAL SCALING
+-----------------------
+- Stateless Services: All services are stateless
+- Load Balancing: API Gateway distributes load
+- Database Scaling: Read replicas, connection pooling
+- Message Queue Scaling: RabbitMQ clustering
+
+9.2 PERFORMANCE OPTIMIZATION
+-----------------------------
+- Async Processing: Event-driven architecture
+- Database Indexing: Optimized queries
+- Caching Strategy: Redis integration (future)
+- Connection Pooling: Database connection management
+
+9.3 MONITORING & OBSERVABILITY
+-------------------------------
+- Health Checks: Built-in health endpoints
+- Logging: Structured logging with correlation IDs
+- Metrics: Prometheus integration (future)
+- Tracing: Distributed tracing (future)
+
+================================================================================
+                             10. FUTURE ROADMAP
+================================================================================
+
+10.1 SHORT-TERM ENHANCEMENTS (Next 3 months)
+---------------------------------------------
+- Customer Notification System
+- Order Tracking API for customers
+- Payment Service integration
+- Enhanced error handling and retry mechanisms
+- Comprehensive test suite
+
+10.2 MEDIUM-TERM GOALS (3-6 months)
+------------------------------------
+- Analytics and Reporting Service
+- Real-time dashboards
+- Advanced inventory forecasting
+- Multi-tenant support
+- API versioning strategy
+
+10.3 LONG-TERM VISION (6+ months)
+----------------------------------
+- Machine Learning integration for demand prediction
+- Mobile application support
+- Third-party integrations (shipping providers, payment gateways)
+- Advanced security features
+- Kubernetes migration for production
+
+================================================================================
+                                CONCLUSION
+================================================================================
+
+This High-Level Design document outlines a robust, scalable microservices
+architecture for e-commerce operations. The system implements modern patterns
+and best practices while maintaining flexibility for future enhancements.
+
+The event-driven architecture ensures loose coupling between services, enabling
+independent development, deployment, and scaling. The comprehensive message
+flow design supports complex business processes while maintaining data
+consistency across distributed services.
+
+For questions or clarifications regarding this design, please contact the
+system architecture team.
+
+================================================================================
+                              END OF DOCUMENT
+================================================================================

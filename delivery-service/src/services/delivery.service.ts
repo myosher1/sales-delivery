@@ -24,10 +24,15 @@ export const deliveryService = {
       // Publish status update if fastify instance is provided
       if (fastify?.rabbitmq && newDelivery.orderId) {
         try {
+          console.log(`DEBUG: About to publish status update for order ${newDelivery.orderId}: PENDING`);
           await fastify.rabbitmq.publishStatusUpdate(newDelivery.orderId.toString(), 'PENDING', newDelivery.id);
+          console.log(`DEBUG: Successfully published status update for order ${newDelivery.orderId}: PENDING`);
         } catch (error) {
+          console.error('DEBUG: Failed to publish delivery creation status:', error);
           fastify.log?.error('Failed to publish delivery creation status:', error);
         }
+      } else {
+        console.log(`DEBUG: Cannot publish status update - fastify.rabbitmq: ${!!fastify?.rabbitmq}, orderId: ${newDelivery?.orderId}`);
       }
       
       return newDelivery;
@@ -64,10 +69,15 @@ export const deliveryService = {
       // Publish status update if fastify instance is provided
       if (fastify?.rabbitmq && updatedDelivery?.orderId) {
         try {
+          console.log(`DEBUG: About to publish status update for order ${updatedDelivery.orderId}: ${status}`);
           await fastify.rabbitmq.publishStatusUpdate(updatedDelivery.orderId.toString(), status, updatedDelivery.id);
+          console.log(`DEBUG: Successfully published status update for order ${updatedDelivery.orderId}: ${status}`);
         } catch (error) {
+          console.error('DEBUG: Failed to publish delivery status update:', error);
           fastify.log?.error('Failed to publish delivery status update:', error);
         }
+      } else {
+        console.log(`DEBUG: Cannot publish status update - fastify.rabbitmq: ${!!fastify?.rabbitmq}, orderId: ${updatedDelivery?.orderId}`);
       }
       
       return updatedDelivery;
