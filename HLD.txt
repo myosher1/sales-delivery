@@ -128,7 +128,6 @@ ENDPOINTS:
 - POST /orders - Create new order
 - GET /orders/:id - Retrieve order details
 - PUT /orders/:id/status - Update order status
-- GET /customers/:id - Customer information
 
 DATABASE: ecommerce_db
 TABLES:
