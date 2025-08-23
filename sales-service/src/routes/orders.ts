@@ -1,16 +1,31 @@
-import { FastifyPluginAsync } from 'fastify';
-import { randomUUID } from 'crypto';
-import { db, schema } from '../db/connection.js';
-import { eq } from 'drizzle-orm';
+import {randomUUID} from 'crypto';
+import {db} from '../db/connection.js';
+import * as schema from '../db/schema.js';
+import { inventoryClient } from '../services/inventory.client.js';
+import {eq} from 'drizzle-orm';
 import {
-  createOrderSchema,
-  getOrderSchema,
-  updateOrderStatusSchema,
-  CreateOrderBody,
-  GetOrderParams,
-  UpdateOrderStatusParams,
-  UpdateOrderStatusBody
+    CreateOrderBody,
+    createOrderSchema,
+    GetOrderParams,
+    getOrderSchema,
+    UpdateOrderStatusBody,
+    UpdateOrderStatusParams,
+    updateOrderStatusSchema
 } from '../types/index.js';
+import {FastifyPluginAsync} from "fastify";
+
+interface OrderItem {
+  productId: string;
+  quantity: number;
+  price: number;
+}
+
+interface CreateOrderRequest {
+  customerId: string;
+  customerEmail: string;
+  shippingAddress: string;
+  items: OrderItem[];
+}
 
 export const ordersRoute: FastifyPluginAsync = async (app) => {
   // Create new order
@@ -18,12 +33,30 @@ export const ordersRoute: FastifyPluginAsync = async (app) => {
     const { customerId, customerEmail, shippingAddress, items } = request.body as CreateOrderBody;
     
     try {
-      const orderId = randomUUID();
+      // Step 1: Validate inventory via RabbitMQ
+        app.log.info('Checking inventory availability via HTTP...');
+
+      const inventoryItems = items.map(item => ({
+        productId: item.productId,
+        quantity: item.quantity
+      }));
       
-      // Calculate total amount
+      const inventoryResponse = await inventoryClient.checkAvailability(inventoryItems);
+      // Check if inventory validation failed
+      if (!inventoryResponse.available) {
+        reply.status(400).send({
+          error: 'Order cannot be processed due to product availability issues',
+          unavailableProducts: inventoryResponse.unavailableItems || inventoryResponse.items?.filter((item: any) => !item.available)
+        });
+        return;
+      }
+
+      // Step 2: Calculate total amount
       const totalAmount = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
       
-      // Create order
+      // Step 3: Create order
+      const orderId = randomUUID();
+      
       const [newOrder] = await db.insert(schema.orders).values({
         id: orderId,
         customerId,
@@ -33,7 +66,7 @@ export const ordersRoute: FastifyPluginAsync = async (app) => {
         status: 'Pending Shipment'
       }).returning();
       
-      // Create order items
+      // Step 4: Create order items
       const orderItems = items.map(item => ({
         id: randomUUID(),
         orderId,
@@ -46,11 +79,24 @@ export const ordersRoute: FastifyPluginAsync = async (app) => {
       
       await db.insert(schema.orderItems).values(orderItems);
       
+      // Step 5: Reserve stock via RabbitMQ
+      app.log.info('Reserving stock via RabbitMQ...');
+      await app.rabbitmq.reserveStock(orderId, inventoryItems);
+      
+      // Step 6: Publish order event to RabbitMQ for delivery service
+      try {
+        await app.rabbitmq.publishOrderEvent(newOrder);
+        app.log.info(`Order event published for order ${newOrder.id}`);
+      } catch (rabbitError: any) {
+        app.log.error('Failed to publish order event:', rabbitError);
+        // Don't fail the order creation if RabbitMQ fails
+      }
+      
       reply.status(201).send({
         orderId: newOrder.id,
         status: newOrder.status,
         totalAmount: newOrder.totalAmount,
-        message: 'Order created successfully and delivery process initiated'
+        message: 'Order created successfully with inventory validation and delivery process initiated'
       });
       
     } catch (error) {

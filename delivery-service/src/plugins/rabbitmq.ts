@@ -5,26 +5,22 @@ import { deliveryService } from '../services/delivery.service.js';
 // Default configuration
 const DEFAULT_CONFIG = {
   url: process.env.RABBITMQ_URL || 'amqp://guest:guest@rabbitmq:5672',
-  queue: 'delivery_queue'
+  queue: 'delivery_queue',
+  statusQueue: 'status_queue'
 };
 
 // Type augmentation for Fastify instance
 declare module 'fastify' {
   interface FastifyInstance {
     rabbitmq: {
-      channel: amqp.Channel;
-      connection: amqp.Connection;
+      channel: any;
+      connection: any;
+      publishStatusUpdate: (orderId: string, status: string, deliveryId?: number) => Promise<void>;
     };
   }
 }
 
-// Plugin options type
-interface RabbitMQPluginOptions {
-  url?: string;
-  queue?: string;
-}
-
-const rabbitmqPlugin: FastifyPluginAsync<RabbitMQPluginOptions> = async (fastify, options) => {
+const rabbitmqPlugin: FastifyPluginAsync = async (fastify, options) => {
   const config = {
     ...DEFAULT_CONFIG,
     ...options
@@ -40,10 +36,34 @@ const rabbitmqPlugin: FastifyPluginAsync<RabbitMQPluginOptions> = async (fastify
     fastify.log.info(`Setting up queue: ${config.queue}`);
     await channel.assertQueue(config.queue, { durable: true });
 
+    // Assert the status queue
+    fastify.log.info(`Setting up status queue: ${config.statusQueue}`);
+    await channel.assertQueue(config.statusQueue, { durable: true });
+
+    // Helper function to publish status updates
+    const publishStatusUpdate = async (orderId: string, status: string, deliveryId?: number) => {
+      const message = {
+        type: 'DELIVERY_STATUS_UPDATE',
+        orderId,
+        status,
+        deliveryId,
+        timestamp: new Date().toISOString()
+      };
+
+      await channel.sendToQueue(
+        config.statusQueue,
+        Buffer.from(JSON.stringify(message)),
+        { persistent: true }
+      );
+
+      fastify.log.info(`Published status update for order ${orderId}: ${status}`);
+    };
+
     // Store the connection and channel in the Fastify instance
     fastify.decorate('rabbitmq', {
       channel,
-      connection: connection as unknown as amqp.Connection // Type assertion to match the interface
+      connection: connection as unknown as amqp.Connection,
+      publishStatusUpdate
     });
 
     // Consume messages from the queue
@@ -63,7 +83,7 @@ const rabbitmqPlugin: FastifyPluginAsync<RabbitMQPluginOptions> = async (fastify
               customerId: message.customerId || 0, // Default customerId if not provided
               address: message.shippingAddress || {},
               status: 'PENDING',
-            });
+            }, fastify);
             fastify.log.info(`Created delivery for order ${message.orderId}`);
             break;
 

@@ -4,10 +4,12 @@ import fastifyCors from '@fastify/cors';
 import fastifyHelmet from '@fastify/helmet';
 import redisPlugin from './plugins/redis.js';
 import fastifyReplyFrom from '@fastify/reply-from';
-import fastifyHttpProxy, { FastifyHttpProxyOptions } from '@fastify/http-proxy';
-import idempotencyMiddleware from './middleware/idempotency.js';
+import fastifyHttpProxy, {FastifyHttpProxyOptions} from '@fastify/http-proxy';
+import { idempotencyPreHandler } from './middleware/idempotency.js';
 import {fileURLToPath} from 'url';
 import path from 'path';
+import fetch from 'node-fetch';
+
 
 // Define the Fastify instance type with explicit server types
 type FastifyApp = FastifyInstance<
@@ -53,9 +55,6 @@ export async function buildApp(opts = {}): Promise<FastifyApp> {
         base: process.env.SALES_SERVICE_URL || 'http://sales-service:3000'
     });
 
-    // Register idempotency middleware as a plugin
-    await app.register(idempotencyMiddleware);
-
     // Register Redis with configuration
     try {
         await app.register(redisPlugin, {
@@ -79,35 +78,85 @@ export async function buildApp(opts = {}): Promise<FastifyApp> {
 
     }
 
-    // Explicit route for POST /api/sales with idempotency
-    app.post('/api/sales', async (request, reply) => {
-        const target = new URL('/orders', process.env.SALES_SERVICE_URL || 'http://sales-service:3000');
+    // Explicit route for POST /api/sales with idempotency middleware
+    app.post('/api/sales',
+        // Add idempotency middleware
+        {preHandler: idempotencyPreHandler},
 
-        // Log the incoming request body for debugging
-        console.log('Request body:', request.body);
+        async (request, reply) => {
+            const target = new URL('/orders', process.env.SALES_SERVICE_URL || 'http://sales-service:3000');
 
-        if (!request.body) {
-            return reply.status(400).send({ error: 'Request body is required' });
-        }
+            // Stringify headers for logging
+            const headersForLogging = Object.fromEntries(
+                Object.entries(request.headers).map(([key, value]) => [
+                    key,
+                    Array.isArray(value) ? value.join(', ') : value
+                ])
+            );
 
-        try {
-            return reply.from(target.toString(), {
-                method: 'POST',
-                body: JSON.stringify(request.body),  // Manually stringify the request body
-                rewriteRequestHeaders: (req: IncomingMessage, headers: Record<string, string | string[] | undefined>) => ({
-                    ...headers,
-                    'content-type': 'application/json',
+            app.log.info('Incoming request headers: %j', headersForLogging);
+            app.log.info({body: request.body}, 'Request body');
+
+            if (!request.body) {
+                app.log.error('Request body is empty');
+                return reply.status(400).send({error: 'Request body is required'});
+            }
+
+            try {
+                // Convert the body to a string if it's not already
+                const bodyString = typeof request.body === 'string' ? request.body : JSON.stringify(request.body);
+
+                // Convert headers to ensure all values are strings
+                const headers: Record<string, string> = {
+                    'Content-Type': 'application/json',
                     'host': target.host,
-                    'x-forwarded-for': request.headers['x-forwarded-for'] || request.socket.remoteAddress || '',
-                    'x-forwarded-proto': request.headers['x-forwarded-proto'] || 'http',
-                    'x-forwarded-host': request.headers['x-forwarded-host'] || request.headers.host || ''
-                })
-            } as any);
-        } catch (error) {
-            console.error('Error forwarding request:', error);
-            return reply.status(500).send({ error: 'Internal server error' });
-        }
-    });
+                    'x-forwarded-for': Array.isArray(request.headers['x-forwarded-for'])
+                        ? request.headers['x-forwarded-for'][0]
+                        : (request.headers['x-forwarded-for'] || request.socket.remoteAddress || ''),
+                    'x-forwarded-proto': Array.isArray(request.headers['x-forwarded-proto'])
+                        ? request.headers['x-forwarded-proto'][0]
+                        : (request.headers['x-forwarded-proto'] || 'http'),
+                    'x-forwarded-host': Array.isArray(request.headers['x-forwarded-host'])
+                        ? request.headers['x-forwarded-host'][0]
+                        : (request.headers['x-forwarded-host'] || request.headers.host || '')
+                };
+
+                // Make the request to the sales service
+                const response = await fetch(target.toString(), {
+                    method: 'POST',
+                    headers,
+                    body: bodyString
+                });
+
+                // Get the response body as text
+                const responseBody = await response.text();
+
+                // Convert Headers to a plain object
+                const responseHeaders: Record<string, string> = {};
+                response.headers.forEach((value, key) => {
+                    responseHeaders[key] = value;
+                });
+
+                // The idempotency middleware will handle caching the response
+                if (request.idempotencyKey) {
+                    reply.header('X-Idempotent-Key', request.idempotencyKey);
+                }
+
+                // Send the response
+                return reply
+                    .status(response.status)
+                    .headers(responseHeaders)
+                    .send(responseBody);
+
+            } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                app.log.error(`Error processing request: ${errorMessage}`);
+                return reply.status(500).send({
+                    error: 'Error processing request',
+                    details: error instanceof Error ? error.message : 'Unknown error'
+                });
+            }
+        });
     // Proxy all other /api/sales/* requests
     await app.register(fastifyHttpProxy, {
         upstream: process.env.SALES_SERVICE_URL || 'http://sales-service:3000',
@@ -118,7 +167,7 @@ export async function buildApp(opts = {}): Promise<FastifyApp> {
         httpMethods: ['DELETE', 'GET', 'HEAD', 'PATCH', 'PUT', 'OPTIONS'],
         replyOptions: {
             rewriteRequestHeaders: (request: FastifyRequest, headers: Record<string, string | string[] | undefined>) => {
-                const newHeaders = { ...headers };
+                const newHeaders = {...headers};
                 newHeaders.host = new URL(process.env.SALES_SERVICE_URL || 'http://sales-service:3000').host;
                 newHeaders['x-forwarded-for'] = request.headers['x-forwarded-for'] || request.socket.remoteAddress || '';
                 newHeaders['x-forwarded-proto'] = request.headers['x-forwarded-proto'] || 'http';

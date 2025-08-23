@@ -14,13 +14,16 @@
   },
   "dependencies": {
     "@fastify/type-provider-json-schema-to-ts": "^3.0.0",
+    "amqplib": "^0.10.3",
     "dotenv": "^17.2.1",
     "drizzle-orm": "^0.29.0",
     "fastify": "^4.24.3",
+    "fastify-plugin": "^4.5.1",
     "json-schema-to-ts": "^3.0.1",
     "postgres": "^3.4.3"
   },
   "devDependencies": {
+    "@types/amqplib": "^0.10.1",
     "@types/node": "^20.8.0",
     "drizzle-kit": "^0.20.4",
     "tsx": "^3.14.0",

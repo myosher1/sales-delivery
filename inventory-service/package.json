@@ -1,0 +1,29 @@
+{
+  "name": "inventory-service",
+  "version": "1.0.0",
+  "description": "Inventory management microservice for e-commerce platform",
+  "main": "dist/app.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "npm run build && npm run db:migrate && npm run db:seed && node dist/app.js",
+    "dev": "tsx watch src/app.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "node migrate.js",
+    "db:seed": "node dist/db/seed.js"
+  },
+  "dependencies": {
+    "fastify": "^4.24.3",
+    "drizzle-orm": "^0.29.1",
+    "postgres": "^3.4.3",
+    "amqplib": "^0.10.3",
+    "fastify-plugin": "^4.5.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.8.10",
+    "@types/amqplib": "^0.10.4",
+    "typescript": "^5.2.2",
+    "tsx": "^4.1.2",
+    "drizzle-kit": "^0.20.4"
+  }
+}

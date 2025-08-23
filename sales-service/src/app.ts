@@ -2,6 +2,9 @@ import Fastify from 'fastify';
 import { JsonSchemaToTsProvider } from '@fastify/type-provider-json-schema-to-ts';
 import { helloRoute } from "./routes/hello.js";
 import { ordersRoute } from "./routes/orders.js";
+import rabbitmqPlugin from "./plugins/rabbitmq.js";
+
+
 
 const fastify = Fastify({
   logger: true
@@ -9,6 +12,9 @@ const fastify = Fastify({
 
 const start = async () => {
   try {
+    // Register RabbitMQ plugin first
+    await fastify.register(rabbitmqPlugin);
+    
     // Register routes
     await fastify.register(helloRoute);
     await fastify.register(ordersRoute);

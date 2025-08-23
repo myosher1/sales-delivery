@@ -2,8 +2,16 @@ import { eq } from 'drizzle-orm';
 import { db } from '../db/connection.js';
 import { deliveries } from '../db/schema.js';
 
+// Add interface for the fastify instance parameter
+interface FastifyInstance {
+  rabbitmq?: {
+    publishStatusUpdate: (orderId: string, status: string, deliveryId?: number) => Promise<void>;
+  };
+  log?: any;
+}
+
 export const deliveryService = {
-  async createDelivery(deliveryData: any) {
+  async createDelivery(deliveryData: any, fastify?: FastifyInstance) {
     try {
       const [newDelivery] = await db
         .insert(deliveries)
@@ -12,6 +20,16 @@ export const deliveryService = {
           status: 'PENDING', 
         })
         .returning();
+      
+      // Publish status update if fastify instance is provided
+      if (fastify?.rabbitmq && newDelivery.orderId) {
+        try {
+          await fastify.rabbitmq.publishStatusUpdate(newDelivery.orderId.toString(), 'PENDING', newDelivery.id);
+        } catch (error) {
+          fastify.log?.error('Failed to publish delivery creation status:', error);
+        }
+      }
+      
       return newDelivery;
     } catch (error) {
       console.error('Error creating delivery:', error);
@@ -32,7 +50,7 @@ export const deliveryService = {
     }
   },
 
-  async updateDeliveryStatus(id: number, status: 'PENDING' | 'IN_TRANSIT' | 'DELIVERED' | 'FAILED') {
+  async updateDeliveryStatus(id: number, status: 'PENDING' | 'IN_TRANSIT' | 'DELIVERED' | 'FAILED', fastify?: FastifyInstance) {
     try {
       const [updatedDelivery] = await db
         .update(deliveries)
@@ -42,6 +60,16 @@ export const deliveryService = {
         })
         .where(eq(deliveries.id, id))
         .returning();
+      
+      // Publish status update if fastify instance is provided
+      if (fastify?.rabbitmq && updatedDelivery?.orderId) {
+        try {
+          await fastify.rabbitmq.publishStatusUpdate(updatedDelivery.orderId.toString(), status, updatedDelivery.id);
+        } catch (error) {
+          fastify.log?.error('Failed to publish delivery status update:', error);
+        }
+      }
+      
       return updatedDelivery;
     } catch (error) {
       console.error('Error updating delivery status:', error);

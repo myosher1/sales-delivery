@@ -16,10 +16,12 @@ services:
       - REDIS_PORT=6379
       - SALES_SERVICE_URL=http://sales-service:3000
       - DELIVERY_SERVICE_URL=http://delivery-service:3002
+      - INVENTORY_SERVICE_URL=http://inventory-service:3003
     depends_on:
       - redis
       - sales-service
       - delivery-service
+      - inventory-service
     networks:
       - my-shop-network
     restart: unless-stopped
@@ -51,8 +53,33 @@ services:
       - DB_PASSWORD=password
       - DB_NAME=ecommerce_db
       - DATABASE_URL=postgresql://postgres:password@postgres:5432/ecommerce_db
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - my-shop-network
+    restart: unless-stopped
+
+  # Inventory Service
+  inventory-service:
+    build:
+      context: ./inventory-service
+      dockerfile: Dockerfile
+    ports:
+      - "3003:3003"
+    environment:
+      - NODE_ENV=development
+      - PORT=3003
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/inventory_db
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     networks:
       - my-shop-network
     restart: unless-stopped
@@ -104,7 +131,7 @@ services:
 #  # Delivery Service
   delivery-service:
     build:
-      context: ./delivery-service
+      context: delivery-service
       dockerfile: Dockerfile
     container_name: delivery-service
     environment:
