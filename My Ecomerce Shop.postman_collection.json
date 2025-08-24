@@ -78,7 +78,7 @@
             "api",
             "sales",
             "orders",
-            "f14c6501-3e8b-4078-b3d8-779449bf51b6"
+            "{{orderId}}"
           ]
         },
         "description": "Generated from cURL: curl -X GET \"http://localhost:3000/api/sales/orders/f14c6501-3e8b-4078-b3d8-779449bf51b6\" \\\n  -H \"Content-Type: application/json\""
