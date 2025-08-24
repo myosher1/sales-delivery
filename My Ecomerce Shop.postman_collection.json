@@ -68,7 +68,7 @@
           }
         ],
         "url": {
-          "raw": "http://localhost:3000/api/sales/orders/f14c6501-3e8b-4078-b3d8-779449bf51b6",
+          "raw": "http://localhost:3000/api/sales/orders/{{orderId}}",
           "protocol": "http",
           "host": [
             "localhost"
