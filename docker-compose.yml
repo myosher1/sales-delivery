@@ -3,86 +3,86 @@ version: '3.8'
 services:
 
   # API Gateway
-  api-gateway:
-    build:
-      context: ./api-gateway
-      dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=development
-      - PORT=3000
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - SALES_SERVICE_URL=http://sales-service:3000
-      - DELIVERY_SERVICE_URL=http://delivery-service:3002
-      - INVENTORY_SERVICE_URL=http://inventory-service:3003
-    depends_on:
-      - redis
-      - sales-service
-      - delivery-service
-      - inventory-service
-    networks:
-      - my-shop-network
-    restart: unless-stopped
+#  api-gateway:
+#    build:
+#      context: ./api-gateway
+#      dockerfile: Dockerfile
+#    ports:
+#      - "3000:3000"
+#    environment:
+#      - NODE_ENV=development
+#      - PORT=3000
+#      - REDIS_HOST=redis
+#      - REDIS_PORT=6379
+#      - SALES_SERVICE_URL=http://sales-service:3000
+#      - DELIVERY_SERVICE_URL=http://delivery-service:3002
+#      - INVENTORY_SERVICE_URL=http://inventory-service:3003
+##    depends_on:
+##      - redis
+##      - sales-service
+##      - delivery-service
+##      - inventory-service
+#    networks:
+#      - my-shop-network
+#    restart: unless-stopped
 
   # Redis
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - my-shop-network
-    restart: unless-stopped
-
-  # Sales Service
-  sales-service:
-    build:
-      context: ./sales-service
-      dockerfile: Dockerfile
-    ports:
-      - "3001:3000"
-    environment:
-      - NODE_ENV=development
-      - PORT=3000
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USERNAME=postgres
-      - DB_PASSWORD=password
-      - DB_NAME=sales_db
-      - DATABASE_URL=postgresql://postgres:password@postgres:5432/sales_db
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
-    depends_on:
-      postgres:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - my-shop-network
-    restart: unless-stopped
-
-  # Inventory Service
-  inventory-service:
-    build:
-      context: ./inventory-service
-      dockerfile: Dockerfile
-    ports:
-      - "3003:3003"
-    environment:
-      - NODE_ENV=development
-      - PORT=3003
-      - DATABASE_URL=postgresql://postgres:password@postgres:5432/inventory_db
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
-    depends_on:
-      postgres:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - my-shop-network
-    restart: unless-stopped
+#  redis:
+#    image: redis:7-alpine
+#    ports:
+#      - "6379:6379"
+#    volumes:
+#      - redis_data:/data
+#    networks:
+#      - my-shop-network
+#    restart: unless-stopped
+#
+#  # Sales Service
+#  sales-service:
+#    build:
+#      context: ./sales-service
+#      dockerfile: Dockerfile
+#    ports:
+#      - "3001:3000"
+#    environment:
+#      - NODE_ENV=development
+#      - PORT=3000
+#      - DB_HOST=postgres
+#      - DB_PORT=5432
+#      - DB_USERNAME=postgres
+#      - DB_PASSWORD=password
+#      - DB_NAME=sales_db
+#      - DATABASE_URL=postgresql://postgres:password@postgres:5432/sales_db
+#      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+#    depends_on:
+#      postgres:
+#        condition: service_healthy
+#      rabbitmq:
+#        condition: service_healthy
+#    networks:
+#      - my-shop-network
+#    restart: unless-stopped
+#
+#  # Inventory Service
+#  inventory-service:
+#    build:
+#      context: ./inventory-service
+#      dockerfile: Dockerfile
+#    ports:
+#      - "3003:3003"
+#    environment:
+#      - NODE_ENV=development
+#      - PORT=3003
+#      - DATABASE_URL=postgresql://postgres:password@postgres:5432/inventory_db
+#      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+#    depends_on:
+#      postgres:
+#        condition: service_healthy
+#      rabbitmq:
+#        condition: service_healthy
+#    networks:
+#      - my-shop-network
+#    restart: unless-stopped
 
   # PostgreSQL Database
   postgres:
@@ -106,50 +106,50 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # RabbitMQ
-  rabbitmq:
-    image: rabbitmq:3.12-management
-    hostname: rabbitmq
-    container_name: rabbitmq
-    environment:
-      - RABBITMQ_DEFAULT_USER=guest
-      - RABBITMQ_DEFAULT_PASS=guest
-    ports:
-      - "5672:5672"  # AMQP protocol
-      - "15672:15672"  # Management UI
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
-    networks:
-      - my-shop-network
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-    restart: unless-stopped
-
-  # Delivery Service
-  delivery-service:
-    build:
-      context: delivery-service
-      dockerfile: Dockerfile
-    container_name: delivery-service
-    environment:
-      - NODE_ENV=development
-      - PORT=3000
-      - DATABASE_URL=postgres://postgres:password@postgres:5432/delivery_db
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
-      - RABBITMQ_QUEUE=delivery_queue
-    ports:
-      - "3002:3000"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - my-shop-network
-    restart: unless-stopped
+#  # RabbitMQ
+#  rabbitmq:
+#    image: rabbitmq:3.12-management
+#    hostname: rabbitmq
+#    container_name: rabbitmq
+#    environment:
+#      - RABBITMQ_DEFAULT_USER=guest
+#      - RABBITMQ_DEFAULT_PASS=guest
+#    ports:
+#      - "5672:5672"  # AMQP protocol
+#      - "15672:15672"  # Management UI
+#    volumes:
+#      - rabbitmq_data:/var/lib/rabbitmq
+#    networks:
+#      - my-shop-network
+#    healthcheck:
+#      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+#      interval: 10s
+#      timeout: 5s
+#      retries: 10
+#    restart: unless-stopped
+#
+#  # Delivery Service
+#  delivery-service:
+#    build:
+#      context: delivery-service
+#      dockerfile: Dockerfile
+#    container_name: delivery-service
+#    environment:
+#      - NODE_ENV=development
+#      - PORT=3000
+#      - DATABASE_URL=postgres://postgres:password@postgres:5432/delivery_db
+#      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+#      - RABBITMQ_QUEUE=delivery_queue
+#    ports:
+#      - "3002:3000"
+#    depends_on:
+#      postgres:
+#        condition: service_healthy
+#      rabbitmq:
+#        condition: service_healthy
+#    networks:
+#      - my-shop-network
+#    restart: unless-stopped
 
 networks:
   my-shop-network:
