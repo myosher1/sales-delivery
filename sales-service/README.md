@@ -13,7 +13,7 @@ A Fastify-based microservice for handling sales operations with PostgreSQL and D
 ## Database Setup
 
 1. Make sure PostgreSQL is running
-2. Create database: `createdb ecommerce_db`
+2. Create database: `createdb sales_db`
 3. Generate migrations: `npm run db:generate`
 4. Run migrations: `npm run db:migrate`
 

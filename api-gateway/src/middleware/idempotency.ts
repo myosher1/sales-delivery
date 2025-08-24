@@ -7,7 +7,15 @@ declare module 'fastify' {
     }
 }
 
-const IDEMPOTENCY_TTL = 24 * 60 * 60; // 24 hours in seconds
+const IDEMPOTENCY_TTL = 60 * 60; // 1 hour in seconds
+
+// Validate idempotency key format
+const isValidIdempotencyKey = (key: string): boolean => {
+    if (!key || key.trim() === '' || key.length > 255) {
+        return false;
+    }
+    return true;
+};
 
 // The pre-handler function that can be used directly in routes
 export const idempotencyPreHandler = async (request: FastifyRequest, reply: FastifyReply) => {
@@ -16,29 +24,47 @@ export const idempotencyPreHandler = async (request: FastifyRequest, reply: Fast
         return;
     }
 
-    const idempotencyHeader = Object.entries(request.headers).find(
+    const idempotencyHeaderEntry = Object.entries(request.headers).find(
         ([key]) => key.toLowerCase() === 'idempotency-key'
-    )?.[1];
+    );
 
-    const idempotencyKey = Array.isArray(idempotencyHeader)
-        ? idempotencyHeader[0]
-        : idempotencyHeader;
-
-    if (!idempotencyKey) {
+    // If no idempotency header provided at all, skip processing
+    if (!idempotencyHeaderEntry) {
         return;
+    }
+
+    const idempotencyKey = Array.isArray(idempotencyHeaderEntry[1])
+        ? idempotencyHeaderEntry[1][0]
+        : idempotencyHeaderEntry[1];
+
+    // If idempotency header exists but value is invalid, return error
+    if (!isValidIdempotencyKey(idempotencyKey || '')) {
+        return reply.status(400).send({
+            error: 'Invalid Idempotency-Key format'
+        });
     }
 
     request.idempotencyKey = idempotencyKey;
     const cacheKey = `idempotency:${idempotencyKey}`;
 
-    const cachedResponse = await (request.server as any).redis.get(cacheKey);
-    if (cachedResponse) {
-        const { statusCode, headers, body } = JSON.parse(cachedResponse);
-        reply.header('X-Idempotent-Replay', 'true');
-        return reply
-            .status(statusCode)
-            .headers(headers)
-            .send(body);
+    try {
+        const cachedResponse = await (request.server as any).redis.get(cacheKey);
+        if (cachedResponse) {
+            try {
+                const { statusCode, headers, body } = JSON.parse(cachedResponse);
+                reply.header('X-Idempotent-Replay', 'true');
+                return reply
+                    .status(statusCode)
+                    .headers(headers)
+                    .send(body);
+            } catch (parseError) {
+                // Malformed cached data - continue with normal processing
+                console.warn('Failed to parse cached response, continuing with normal processing:', parseError);
+            }
+        }
+    } catch (redisError) {
+        // Redis connection error - continue with normal processing
+        console.warn('Redis error during idempotency check, continuing with normal processing:', redisError);
     }
 
     // Store the original send method
@@ -50,11 +76,17 @@ export const idempotencyPreHandler = async (request: FastifyRequest, reply: Fast
                 headers: reply.getHeaders(),
                 body: data
             };
-            (request.server as any).redis.setex(
-                cacheKey,
-                IDEMPOTENCY_TTL,
-                JSON.stringify(responseToCache)
-            );
+            
+            // Try to cache the response, but don't fail if Redis is unavailable
+            try {
+                (request.server as any).redis.setex(
+                    cacheKey,
+                    IDEMPOTENCY_TTL,
+                    JSON.stringify(responseToCache)
+                );
+            } catch (cacheError) {
+                console.warn('Failed to cache response:', cacheError);
+            }
         }
         return originalSend.call(reply, data);
     };

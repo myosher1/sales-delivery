@@ -30,12 +30,13 @@ wait_for_postgres
 
 # Create databases
 echo "Creating databases..."
-for dbname in ecommerce_db delivery_db; do
+for dbname in sales_db delivery_db inventory_db; do
     echo "Creating database: $dbname"
     psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
-        CREATE DATABASE "$dbname";
-        GRANT ALL PRIVILEGES ON DATABASE "$dbname" TO "$POSTGRES_USER";
+        CREATE DATABASE $dbname;
+        GRANT ALL PRIVILEGES ON DATABASE $dbname TO $POSTGRES_USER;
 EOSQL
 done
 
 echo "Database initialization complete!"
+echo "Created databases: sales_db, delivery_db, inventory_db"
