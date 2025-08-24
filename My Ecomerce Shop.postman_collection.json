@@ -1,141 +1,231 @@
 {
-	"info": {
-		"_postman_id": "76db1741-ba7d-4c37-89de-82a1bd5df4c6",
-		"name": "My Ecomerce Shop",
-		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "84505"
-	},
-	"item": [
-		{
-			"name": "Create Order",
-			"request": {
-				"method": "POST",
-				"header": [
-					{
-						"key": "Content-Type",
-						"value": "application/json"
-					},
-					{
-						"key": "Idempotency-Key",
-						"value": "lifecycle-test-$(date +%s)"
-					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n    \"customerId\": \"customer-lifecycle-test\",\n    \"customerEmail\": \"lifecycle@example.com\",\n    \"shippingAddress\": \"123 Lifecycle Test St, Demo City, State 12345\",\n    \"items\": [\n      {\n        \"productId\": \"prod-001\",\n        \"quantity\": 2,\n        \"unitPrice\": 99.99,\n        \"productName\": \"Wireless Bluetooth Headphones\"\n      }\n    ]\n  }",
-					"options": {
-						"raw": {
-							"language": "json"
-						}
-					}
-				},
-				"url": {
-					"raw": "http://localhost:3000/api/sales",
-					"protocol": "http",
-					"host": [
-						"localhost"
-					],
-					"port": "3000",
-					"path": [
-						"api",
-						"sales"
-					]
-				},
-				"description": "Generated from cURL: curl -X POST http://localhost:3000/api/sales \\\n  -H \"Content-Type: application/json\" \\\n  -H \"Idempotency-Key: lifecycle-test-$(date +%s)\" \\\n  -d '{\n    \"customerId\": \"customer-lifecycle-test\",\n    \"customerEmail\": \"lifecycle@example.com\",\n    \"shippingAddress\": \"123 Lifecycle Test St, Demo City, State 12345\",\n    \"items\": [\n      {\n        \"productId\": \"prod-001\",\n        \"quantity\": 2,\n        \"unitPrice\": 99.99,\n        \"productName\": \"Wireless Bluetooth Headphones\"\n      }\n    ]\n  }'"
-			},
-			"response": []
-		},
-		{
-			"name": "Get All Deliveries",
-			"request": {
-				"method": "GET",
-				"header": [],
-				"url": {
-					"raw": "http://localhost:3002/deliveries",
-					"protocol": "http",
-					"host": [
-						"localhost"
-					],
-					"port": "3002",
-					"path": [
-						"deliveries"
-					]
-				},
-				"description": "Generated from cURL: curl -X GET http://localhost:3002/deliveries\n"
-			},
-			"response": []
-		},
-		{
-			"name": "Update Delivery To IN_TRANSIT",
-			"request": {
-				"method": "PATCH",
-				"header": [
-					{
-						"key": "Content-Type",
-						"value": "application/json"
-					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\"status\": \"IN_TRANSIT\"}",
-					"options": {
-						"raw": {
-							"language": "json"
-						}
-					}
-				},
-				"url": {
-					"raw": "http://localhost:3002/deliveries/1/status",
-					"protocol": "http",
-					"host": [
-						"localhost"
-					],
-					"port": "3002",
-					"path": [
-						"deliveries",
-						"1",
-						"status"
-					]
-				},
-				"description": "Generated from cURL: curl -X PATCH http://localhost:3002/deliveries/1/status \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"status\": \"IN_TRANSIT\"}'"
-			},
-			"response": []
-		},
-		{
-			"name": "Update Delivery To DELIVERED",
-			"request": {
-				"method": "PATCH",
-				"header": [
-					{
-						"key": "Content-Type",
-						"value": "application/json"
-					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\"status\": \"IN_TRANSIT\"}",
-					"options": {
-						"raw": {
-							"language": "json"
-						}
-					}
-				},
-				"url": {
-					"raw": "http://localhost:3002/deliveries/1/status",
-					"protocol": "http",
-					"host": [
-						"localhost"
-					],
-					"port": "3002",
-					"path": [
-						"deliveries",
-						"1",
-						"status"
-					]
-				},
-				"description": "Generated from cURL: curl -X PATCH http://localhost:3002/deliveries/1/status \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"status\": \"IN_TRANSIT\"}'"
-			},
-			"response": []
-		}
-	]
+  "info": {
+    "_postman_id": "76db1741-ba7d-4c37-89de-82a1bd5df4c6",
+    "name": "My Ecomerce Shop",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "84505"
+  },
+  "item": [
+    {
+      "name": "Create Order",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "lifecycle-test-$(date +%s)"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"customerId\": \"customer-lifecycle-test\",\n    \"customerEmail\": \"lifecycle@example.com\",\n    \"shippingAddress\": \"123 Lifecycle Test St, Demo City, State 12345\",\n    \"items\": [\n      {\n        \"productId\": \"prod-001\",\n        \"quantity\": 2,\n        \"unitPrice\": 99.99,\n        \"productName\": \"Wireless Bluetooth Headphones\"\n      }\n    ]\n  }",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:3000/api/sales",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "3000",
+          "path": [
+            "api",
+            "sales"
+          ]
+        },
+        "description": "Generated from cURL: curl -X POST http://localhost:3000/api/sales \\\n  -H \"Content-Type: application/json\" \\\n  -H \"Idempotency-Key: lifecycle-test-$(date +%s)\" \\\n  -d '{\n    \"customerId\": \"customer-lifecycle-test\",\n    \"customerEmail\": \"lifecycle@example.com\",\n    \"shippingAddress\": \"123 Lifecycle Test St, Demo City, State 12345\",\n    \"items\": [\n      {\n        \"productId\": \"prod-001\",\n        \"quantity\": 2,\n        \"unitPrice\": 99.99,\n        \"productName\": \"Wireless Bluetooth Headphones\"\n      }\n    ]\n  }'"
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "let res = pm.response.json();",
+              "pm.collectionVariables.set(\"orderId\", res.orderId);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get Order",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:3000/api/sales/orders/f14c6501-3e8b-4078-b3d8-779449bf51b6",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "3000",
+          "path": [
+            "api",
+            "sales",
+            "orders",
+            "f14c6501-3e8b-4078-b3d8-779449bf51b6"
+          ]
+        },
+        "description": "Generated from cURL: curl -X GET \"http://localhost:3000/api/sales/orders/f14c6501-3e8b-4078-b3d8-779449bf51b6\" \\\n  -H \"Content-Type: application/json\""
+      },
+      "response": []
+    },
+    {
+      "name": "Get All Deliveries",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3002/deliveries",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "3002",
+          "path": [
+            "deliveries"
+          ]
+        },
+        "description": "Generated from cURL: curl -X GET http://localhost:3002/deliveries\n"
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "let res = pm.response.json();",
+              "pm.collectionVariables.set(\"deliveryId\", res[0].id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Update Delivery To IN_TRANSIT",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"status\": \"IN_TRANSIT\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:3002/deliveries/1/status",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "3002",
+          "path": [
+            "deliveries",
+            "1",
+            "status"
+          ]
+        },
+        "description": "Generated from cURL: curl -X PATCH http://localhost:3002/deliveries/1/status \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"status\": \"IN_TRANSIT\"}'"
+      },
+      "response": []
+    },
+    {
+      "name": "Update Delivery To DELIVERED",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"status\": \"IN_TRANSIT\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:3002/deliveries/1/status",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "3002",
+          "path": [
+            "deliveries",
+            "1",
+            "status"
+          ]
+        },
+        "description": "Generated from cURL: curl -X PATCH http://localhost:3002/deliveries/1/status \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"status\": \"IN_TRANSIT\"}'"
+      },
+      "response": []
+    },
+    {
+      "name": "Get Order With Updated Status",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:3000/api/sales/orders/f14c6501-3e8b-4078-b3d8-779449bf51b6",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "3000",
+          "path": [
+            "api",
+            "sales",
+            "orders",
+            "f14c6501-3e8b-4078-b3d8-779449bf51b6"
+          ]
+        },
+        "description": "Generated from cURL: curl -X GET \"http://localhost:3000/api/sales/orders/f14c6501-3e8b-4078-b3d8-779449bf51b6\" \\\n  -H \"Content-Type: application/json\""
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "orderId",
+      "value": ""
+    },
+    {
+      "key": "deliveryId",
+      "value": ""
+    }
+  ]
 }
