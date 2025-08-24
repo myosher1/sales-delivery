@@ -78,6 +78,36 @@ export async function buildApp(opts = {}): Promise<FastifyApp> {
 
     }
 
+    // Health check endpoint
+    app.get('/health', async (request, reply) => {
+        try {
+            // Check Redis connection
+            let redisStatus = 'disconnected';
+            try {
+                await app.redis.ping();
+                redisStatus = 'connected';
+            } catch (err) {
+                // Redis is optional, so don't fail health check
+                redisStatus = 'disconnected';
+            }
+
+            return {
+                status: 'healthy',
+                service: 'api-gateway',
+                timestamp: new Date().toISOString(),
+                uptime: process.uptime(),
+                redis: redisStatus
+            };
+        } catch (error) {
+            app.log.error(error);
+            return reply.status(500).send({
+                status: 'unhealthy',
+                service: 'api-gateway',
+                error: 'Service unavailable'
+            });
+        }
+    });
+
     // Explicit route for POST /api/sales with idempotency middleware
     app.post('/api/sales',
         // Add idempotency middleware
