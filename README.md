@@ -5,8 +5,8 @@ A distributed e-commerce order processing system built with microservices archit
 ## 🏗️ Architecture Overview
 
 ### Services
-- **API Gateway** (Port 3001): Single entry point with idempotency middleware
-- **Sales Service** (Port 3000): Order creation, status management, inventory validation
+- **API Gateway** (Port 3000): Single entry point with idempotency middleware and request routing
+- **Sales Service** (Port 3001): Order creation, status management, inventory validation
 - **Inventory Service** (Port 3003): Stock management, product catalog, audit trail
 - **Delivery Service** (Port 3002): Delivery management, status updates, route tracking
 
@@ -14,6 +14,7 @@ A distributed e-commerce order processing system built with microservices archit
 - **PostgreSQL** (Port 5432): Three databases (sales_db, delivery_db, inventory_db)
 - **RabbitMQ** (Port 5672): Event-driven communication between services
 - **RabbitMQ Management UI** (Port 15672): Queue monitoring and management
+- **Redis** (Port 6379): Caching and session management for API Gateway
 
 ### Communication Flow
 1. **Order Creation**: Sales Service → Inventory Service (stock validation) → Delivery Service
@@ -42,8 +43,8 @@ docker-compose logs -f
 ### 2. Verify Services
 Once all containers are running, verify services are accessible:
 
-- **API Gateway**: http://localhost:3001/health
-- **Sales Service**: http://localhost:3000/health  
+- **API Gateway**: http://localhost:3000/health
+- **Sales Service**: http://localhost:3001/health  
 - **Inventory Service**: http://localhost:3003/health
 - **Delivery Service**: http://localhost:3002/health
 - **RabbitMQ Management**: http://localhost:15672 (guest/guest)
@@ -63,61 +64,76 @@ Database initialization happens automatically via Docker initialization scripts.
 ### Import Collection
 1. Open Postman
 2. Import the collection: `My Ecomerce Shop.postman_collection.json`
-3. The collection includes all necessary API endpoints
+3. The collection includes automated scripts for seamless workflow testing
+
+### Automated Workflow Testing
+
+The Postman collection now includes **automated scripts** that eliminate manual work:
+
+- **Automatic Variable Capture**: Order IDs and Delivery IDs are automatically extracted and stored
+- **Seamless Flow**: Run requests in sequence without manual copy-pasting of IDs
+- **Complete Lifecycle Testing**: From order creation to delivery status updates
 
 ### Complete Order Workflow
 
 #### Step 1: Create an Order
 ```http
-POST http://localhost:3001/api/orders
+POST http://localhost:3000/api/sales
 Content-Type: application/json
+Idempotency-Key: lifecycle-test-{timestamp}
 
 {
-  "customerId": "customer-123",
-  "customerEmail": "customer@example.com",
-  "shippingAddress": "123 Main St, City, State 12345",
+  "customerId": "customer-lifecycle-test",
+  "customerEmail": "lifecycle@example.com",
+  "shippingAddress": "123 Lifecycle Test St, Demo City, State 12345",
   "items": [
     {
-      "productId": "1",
-      "productName": "Laptop",
-      "quantity": 1,
-      "unitPrice": 999.99
+      "productId": "prod-001",
+      "quantity": 2,
+      "unitPrice": 99.99,
+      "productName": "Wireless Bluetooth Headphones"
     }
   ]
 }
 ```
+
+**✨ Automated Script**: Captures `orderId` from response and stores it as a collection variable.
 
 **Expected Response:**
 ```json
 {
   "orderId": "uuid-generated-id",
   "status": "Pending Shipment",
-  "totalAmount": "999.99",
+  "totalAmount": "199.98",
   "message": "Order created successfully with inventory validation and delivery process initiated"
 }
 ```
 
 #### Step 2: Get Order Details
 ```http
-GET http://localhost:3001/api/orders/{orderId}
+GET http://localhost:3000/api/sales/orders/{orderId}
 ```
+
+**✨ Automated**: Uses the captured `orderId` variable automatically.
 
 #### Step 3: Get Delivery Information
 ```http
-GET http://localhost:3001/api/deliveries
+GET http://localhost:3002/deliveries
 ```
 
-**Find your delivery by matching the orderId, then note the delivery ID.**
+**✨ Automated Script**: Captures the first delivery's `id` and stores it as `deliveryId` variable.
 
 #### Step 4: Update Delivery Status
 ```http
-PUT http://localhost:3001/api/deliveries/{deliveryId}/status
+PATCH http://localhost:3002/deliveries/{deliveryId}/status
 Content-Type: application/json
 
 {
   "status": "IN_TRANSIT"
 }
 ```
+
+**✨ Automated**: Uses the captured `deliveryId` variable automatically.
 
 **Available delivery statuses:**
 - `PENDING` (initial status)
@@ -127,10 +143,17 @@ Content-Type: application/json
 
 #### Step 5: Verify Order Status Update
 ```http
-GET http://localhost:3001/api/orders/{orderId}
+GET http://localhost:3000/api/sales/orders/{orderId}
 ```
 
-The order status should be automatically updated based on the delivery status change.
+**✨ Automated**: Verifies the order status was automatically updated based on delivery status change.
+
+### Running the Complete Workflow
+
+1. **Import Collection**: Load `My Ecomerce Shop.postman_collection.json`
+2. **Run Collection**: Use Postman's "Run Collection" feature for automated testing
+3. **Individual Requests**: Run requests one by one - variables are automatically managed
+4. **No Manual Work**: All IDs are captured and reused automatically
 
 ## 🔧 Development Setup
 
@@ -157,23 +180,40 @@ npm install
 npm run dev
 ```
 
-### Database Migrations
-```bash
-# Sales Service
-cd sales-service
-npm run db:generate  # Generate new migrations
-npm run db:migrate   # Apply migrations
+## 📚 API Documentation
 
-# Delivery Service
-cd delivery-service
-npm run db:generate
-npm run db:migrate
+### API Gateway Routes
+All requests go through the API Gateway at `http://localhost:3000`:
 
-# Inventory Service
-cd inventory-service
-npm run db:generate
-npm run db:migrate
-```
+- **Sales Service**: `/api/sales/*` → Routes to Sales Service
+- **Delivery Service**: Direct access at `http://localhost:3002`
+- **Inventory Service**: Direct access at `http://localhost:3003`
+
+### Sales Service Endpoints (via API Gateway)
+- `POST /api/sales` - Create new order
+- `GET /api/sales/orders/:id` - Get order details
+- `PATCH /api/sales/orders/:id/status` - Update order status
+
+### Delivery Service Endpoints (Direct Access)
+- `GET /deliveries` - List all deliveries
+- `GET /deliveries/:id` - Get delivery details
+- `PATCH /deliveries/:id/status` - Update delivery status
+
+### Inventory Service Endpoints (Direct Access)
+- `POST /check-availability` - Check product availability
+
+## 📈 System Features
+
+- ✅ **Event-Driven Architecture**: Asynchronous communication via RabbitMQ
+- ✅ **Database Per Service**: Independent data management
+- ✅ **Automatic Stock Management**: Inventory validation and reservation
+- ✅ **Bidirectional Status Updates**: Real-time order/delivery synchronization
+- ✅ **Audit Trail**: Complete stock movement history
+- ✅ **Containerized Deployment**: Docker-based infrastructure
+- ✅ **API Gateway**: Centralized request routing with idempotency
+- ✅ **Health Checks**: Service availability monitoring
+- ✅ **Automated Testing**: Postman collection with smart variable management
+- ✅ **Redis Caching**: Performance optimization and session management
 
 ## 🐳 Docker Commands
 
@@ -294,7 +334,7 @@ lsof -i :5672
 ### Inventory Service Endpoints
 - `POST /check-availability` - Check product availability
 
-All endpoints are accessible through the API Gateway at `http://localhost:3001/api/`
+All endpoints are accessible through the API Gateway at `http://localhost:3000/api/`
 
 ## 🏷️ Environment Variables
 
